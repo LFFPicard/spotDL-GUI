@@ -1,5 +1,5 @@
 # spotDL GUI Dockerfile
-# Uses the official spotDL package from PyPI — stable and actively maintained.
+# Uses the official spotDL package from PyPI with targeted bug fixes.
 # https://github.com/LFFPicard/spotDL-GUI
 
 FROM python:3.11-slim
@@ -24,6 +24,26 @@ RUN pip install --no-cache-dir \
     spotdl \
     flask \
     gunicorn
+
+# Patch song.py to gracefully handle missing Spotify API fields.
+# The Spotify API stopped returning 'genres', 'label' and 'popularity'
+# for some tracks/albums as of early 2026. These patches use .get() with
+# safe defaults so a missing field no longer crashes the download.
+RUN SONG_PY=$(python -c "import spotdl.types.song as s; print(s.__file__)") && \
+    echo "Patching $SONG_PY..." && \
+    # Fix KeyError: 'genres'
+    sed -i \
+      's/genres=raw_album_meta\["genres"\] + raw_artist_meta\["genres"\]/genres=(raw_album_meta.get("genres") or []) + (raw_artist_meta.get("genres") or [])/' \
+      "$SONG_PY" && \
+    # Fix KeyError: 'label' (publisher field)
+    sed -i \
+      's/publisher=raw_album_meta\["label"\]/publisher=raw_album_meta.get("label")/' \
+      "$SONG_PY" && \
+    # Fix KeyError: 'popularity'
+    sed -i \
+      's/popularity=raw_track_meta\["popularity"\]/popularity=raw_track_meta.get("popularity")/' \
+      "$SONG_PY" && \
+    echo "All patches applied successfully to $SONG_PY"
 
 # Copy the web GUI
 WORKDIR /app
