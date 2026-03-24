@@ -661,6 +661,7 @@ def api_download():
         query = urls[0] if len(urls) == 1 else f"{len(urls)} URLs"
 
     cmd += ["--format", fmt, "--output", output_tmpl]
+    cmd += ["--audio", "youtube-music", "youtube"]
 
     if bitrate:
         cmd += ["--bitrate", bitrate]
